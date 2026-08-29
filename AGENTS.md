@@ -725,10 +725,10 @@ hidden-api/build.gradle
 hidden-api/src/main/java/android/view/
 hidden-api/src/main/java/android/window/
 app/src/main/AndroidManifest.xml
-app/src/main/java/dev/codex/miuibackgesturehook/MiuiBackGestureHook.java
-app/src/main/java/dev/codex/miuibackgesturehook/ModuleApplication.kt
-app/src/main/java/dev/codex/miuibackgesturehook/PredictiveBackPreferences.java
-app/src/main/java/dev/codex/miuibackgesturehook/PredictiveBackSettingsActivity.kt
+app/src/main/java/dev/codex/backgesturehook/BackGestureHook.java
+app/src/main/java/dev/codex/backgesturehook/ModuleApplication.kt
+app/src/main/java/dev/codex/backgesturehook/PredictiveBackPreferences.java
+app/src/main/java/dev/codex/backgesturehook/activity/PredictiveBackSettingsActivity.kt
 app/src/main/resources/META-INF/xposed/module.prop
 app/src/main/resources/META-INF/xposed/java_init.list
 app/src/main/resources/META-INF/xposed/scope.list
@@ -754,7 +754,7 @@ autoHotReload=true
 The current module entry is:
 
 ```java
-dev.codex.miuibackgesturehook.MiuiBackGestureHook
+dev.codex.backgesturehook.BackGestureHook
 ```
 
 ## LSPosed API 102 Notes

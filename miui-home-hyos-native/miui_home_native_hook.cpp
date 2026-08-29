@@ -627,7 +627,7 @@ void MarkLsposedLauncherSpecialized() {
 
 constexpr char kSystemUiPackage[] = "com.android.systemui";
 constexpr char kArbiterStateAction[] =
-        "dev.codex.miuibackgesturehook.action.SYSTEMUI_INPUT_ARBITER_STATE";
+        "dev.codex.backgesturehook.action.SYSTEMUI_INPUT_ARBITER_STATE";
 constexpr char kArbiterStateCarrierAction[] = "com.android.systemui.fsgesture";
 constexpr char kContextualSearchEnabledExtra[] =
         "contextual_search_enabled";
@@ -636,15 +636,15 @@ constexpr char kPlatformContextualSearchFeature[] =
 constexpr char kGoogleContextualSearchFeature[] =
         "com.google.android.feature.CONTEXTUAL_SEARCH";
 constexpr char kArbiterQueryAction[] =
-        "dev.codex.miuibackgesturehook.action.MIUI_HOME_INPUT_ARBITER_QUERY";
+        "dev.codex.backgesturehook.action.MIUI_HOME_INPUT_ARBITER_QUERY";
 constexpr char kContextualSearchTriggeredAction[] =
-        "dev.codex.miuibackgesturehook.action.CONTEXTUAL_SEARCH_TRIGGERED";
+        "dev.codex.backgesturehook.action.CONTEXTUAL_SEARCH_TRIGGERED";
 constexpr char kRuntimeStatusResponseAction[] =
-        "dev.codex.miuibackgesturehook.action.RUNTIME_STATUS_REPLY";
+        "dev.codex.backgesturehook.action.RUNTIME_STATUS_REPLY";
 constexpr char kRuntimeStatusQueryExtra[] = "status_query";
 constexpr char kRuntimeStatusNonceExtra[] = "status_nonce";
 constexpr char kAcceptedStateAction[] =
-        "dev.codex.miuibackgesturehook.action.MIUI_OVERVIEW_STATE_CHANGE";
+        "dev.codex.backgesturehook.action.MIUI_OVERVIEW_STATE_CHANGE";
 
 bool MatchesCode(const uint8_t* base, uintptr_t offset,
                  const uint8_t* expected, size_t expected_size) {

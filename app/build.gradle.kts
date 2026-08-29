@@ -52,7 +52,7 @@ val hasEnvSigningConfig = listOf(
 ).all { !it.isNullOrBlank() }
 
 android {
-    namespace = "dev.codex.miuibackgesturehook"
+    namespace = "dev.codex.backgesturehook"
     compileSdk = 37
     if (enableHyosNativeHook) {
         ndkVersion = "30.0.14904198"
@@ -65,7 +65,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "dev.codex.miuibackgesturehook"
+        applicationId = "dev.codex.backgesturehook"
         minSdk = 36
         targetSdk = 37
         versionCode = gitVersionCode.get()

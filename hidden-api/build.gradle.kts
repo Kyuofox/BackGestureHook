@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.codex.miuibackgesturehook.hiddenapi"
+    namespace = "dev.codex.backgesturehook.hiddenapi"
     compileSdk = 37
 
     compileOptions {

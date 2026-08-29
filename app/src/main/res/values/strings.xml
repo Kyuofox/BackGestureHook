@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name" translatable="false">Miui Back Gesture Hook</string>
+    <string name="app_name" translatable="false">Back Gesture Hook</string>
     <string name="module_description" translatable="false">Restores predictive back on Flyme without replacing the OEM gesture style.</string>
     <string name="predictive_back_title">Back gesture management</string>
     <string name="predictive_back_apps_title">Choose apps</string>

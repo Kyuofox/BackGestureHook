@@ -1,4 +1,4 @@
--keep class dev.codex.miuibackgesturehook.MiuiBackGestureHook {
+-keep class dev.codex.backgesturehook.BackGestureHook {
     public <init>();
 }
 

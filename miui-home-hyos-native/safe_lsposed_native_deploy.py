@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Iterable, Sequence
 
 
-PACKAGE_NAME = "dev.codex.miuibackgesturehook"
+PACKAGE_NAME = "dev.codex.backgesturehook"
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 EVIDENCE_ROOT = SCRIPT_DIR / "out" / "lsposed-device-tests"

@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MiuiBackGestureHook"
+rootProject.name = "BackGestureHook"
 include(":app", ":hidden-api")
