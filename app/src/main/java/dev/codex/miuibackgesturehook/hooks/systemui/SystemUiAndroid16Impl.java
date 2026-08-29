@@ -4,7 +4,7 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.os.Handler;
 
-final class SystemUiAndroid16Impl extends SystemUiPlatformImpl {
+class SystemUiAndroid16Impl extends SystemUiPlatformImpl {
     @Override
     String name() {
         return "android16";

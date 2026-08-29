@@ -65,6 +65,10 @@ public abstract class SystemServerHookRuntime extends GoogleAppLiveTranslateRunt
     private volatile ClassLoader systemServerPlatformClassLoader;
 
     protected void installSystemServerHooks(ClassLoader classLoader) {
+        if (isFlymeDevice()) {
+            moduleLog(Log.INFO, TAG, "Skipped system_server hooks on FlymeOS");
+            return;
+        }
         try {
             ClassLoader serverClassLoader = findSystemServerClassLoader(classLoader);
             if (serverClassLoader == null) {

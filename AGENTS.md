@@ -56,6 +56,28 @@ use the currently configured jadx MCP workspace; do not assume an absolute path
 
 ## Current Goal
 
+This fork is rebased onto upstream `wxxsfxyzm/MiuiBackGestureHook` and adapted for
+Meizu FlymeOS. Do not merge upstream; replay local Flyme work as linear commits.
+
+FlymeOS rules:
+
+- Keep Flyme's OEM gesture style. Do not replace
+  `com.flyme.systemui.navigationbar.gestural.EdgeBackView` with AOSP
+  `BackPanelController`, and do not install a competing SystemUI `InputMonitor`.
+- Flyme already owns edge input through `registerSystemGestureListener` and
+  dispatches `EdgeBackGestureHandler` motion into Shell `BackAnimation`.
+- Restore predictive back only in Shell: fill the null
+  `BackAnimationAdapter` on `startBackNavigation(...)`, and make
+  `shouldDispatchToAnimator()` return true for non-`TYPE_CALLBACK` targets.
+- Leave `TYPE_CALLBACK` on the app callback path. Call
+  `BackNavigationInfo.disableAppProgressGenerationAllowed()` before the original
+  `onBackNavigationInfoReceived(...)` body runs.
+- Do not add `com.meizu.flyme.launcher` to the LSPosed scope. FlymeLauncher
+  already binds the standard Shell `IBackAnimation` runner.
+- Skip HyperOS `hyos_spawner` native packaging and activation. Skip MiuiHome
+  Java hooks, Xiaomi OPEN-interruption hooks, and system_server Xiaomi
+  compatibility hooks on Flyme.
+
 The abandoned MiuiHome experiment is specifically the old GestureStub/
 `BackAnimationAdapter` injection path. Standard launcher callback/runner registration
 through Shell remains in scope for `TYPE_RETURN_TO_HOME`.

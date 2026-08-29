@@ -63,6 +63,7 @@ import io.github.libxposed.api.XposedInterface;
 public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
 
     private volatile SystemUiPlatformImpl systemUiPlatformImpl;
+    private final ThreadLocal<Object> flymeBackAnimationAdapterOverride = new ThreadLocal<>();
     private volatile SharedPreferences contextualSearchStatePreferences;
     private volatile Context contextualSearchStateContext;
     private final SharedPreferences.OnSharedPreferenceChangeListener
@@ -96,6 +97,15 @@ public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
     protected void installSystemUiHooks(ClassLoader classLoader) {
         try {
             selectSystemUiPlatformImpl(classLoader);
+            if (isFlymeDevice()) {
+                hookNavigationBarGestureInsets(classLoader);
+                hookShellBackAnimation(classLoader);
+                moduleLog(Log.INFO, TAG,
+                        "Installed Flyme predictive-back hooks without replacing EdgeBackView"
+                                + ", build=" + BUILD_MARK
+                                + ", hooks=" + hookHandles.size());
+                return;
+            }
             hookContextualSearchNavigationBar(classLoader, true, true);
             Context systemUiContext = resolveCurrentApplicationContext(classLoader);
             if (systemUiContext != null) {
@@ -225,9 +235,14 @@ public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
     protected void selectSystemUiPlatformImpl(ClassLoader classLoader) throws Exception {
         Class<?> edgeHandlerClass = Class.forName(EDGE_BACK_GESTURE_HANDLER,
                 false, classLoader);
-        SystemUiPlatformImpl selected = SystemUiAndroid17Impl.matches(
-                edgeHandlerClass, classLoader)
-                ? new SystemUiAndroid17Impl() : new SystemUiAndroid16Impl();
+        SystemUiPlatformImpl selected;
+        if (isFlymeDevice()) {
+            selected = new SystemUiFlymeImpl();
+        } else if (SystemUiAndroid17Impl.matches(edgeHandlerClass, classLoader)) {
+            selected = new SystemUiAndroid17Impl();
+        } else {
+            selected = new SystemUiAndroid16Impl();
+        }
         SystemUiPlatformImpl previous = systemUiPlatformImpl;
         systemUiPlatformImpl = selected;
         if (previous != null && previous != selected) {
@@ -2390,6 +2405,13 @@ public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
             hookShellAnimationFinished(controllerClass, "finishBackAnimation",
                     "shell_back_finishBackAnimation", true);
             hookBackNavigationInfoReceived(controllerClass);
+            if (isFlymeDevice()) {
+                hookFlymeAnimatorDispatch(controllerClass);
+                hookFlymeBackAnimationAdapter(controllerClass, classLoader, true, true);
+                moduleLog(Log.INFO, TAG,
+                        "Hooked Flyme Shell predictive-back adapter and animator dispatch");
+                return;
+            }
             hookPreparedBackTargetArrival(classLoader);
             hookPreparedBackTerminal(controllerClass);
             hookPreparedBackTransitionDecision(classLoader);
@@ -6132,6 +6154,134 @@ public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
         }
     }
 
+    protected void hookFlymeAnimatorDispatch(Class<?> controllerClass) throws Exception {
+        if (!isFlymeDevice()) {
+            return;
+        }
+        Method method = controllerClass.getDeclaredMethod("shouldDispatchToAnimator");
+        method.setAccessible(true);
+        recordHookHandle(hook(method)
+                .setId("shell_back_flyme_dispatch_to_animator")
+                .intercept(this::selectFlymeAnimatorDispatch));
+        moduleLog(Log.INFO, TAG, "Restored Flyme Shell animator dispatch");
+    }
+
+    protected Object selectFlymeAnimatorDispatch(XposedInterface.Chain chain) {
+        try {
+            Object info = readField(chain.getThisObject(), "mBackNavigationInfo");
+            if (info instanceof BackNavigationInfo
+                    && ((BackNavigationInfo) info).getType() == TYPE_CALLBACK) {
+                return Boolean.FALSE;
+            }
+        } catch (Throwable throwable) {
+            moduleLog(Log.WARN, TAG, "Failed to inspect Flyme back type for animator dispatch",
+                    throwable);
+        }
+        return Boolean.TRUE;
+    }
+
+    protected void hookFlymeBackAnimationAdapter(ClassLoader classLoader,
+                                                 boolean hookController,
+                                                 boolean hookActivityTaskManager) {
+        try {
+            Class<?> controllerClass = Class.forName(BACK_ANIMATION_CONTROLLER,
+                    false, classLoader);
+            hookFlymeBackAnimationAdapter(controllerClass, classLoader,
+                    hookController, hookActivityTaskManager);
+        } catch (Throwable throwable) {
+            moduleLog(Log.ERROR, TAG, "Failed to hook Flyme BackAnimationAdapter", throwable);
+        }
+    }
+
+    protected void hookFlymeBackAnimationAdapter(Class<?> controllerClass,
+                                                 ClassLoader classLoader,
+                                                 boolean hookController,
+                                                 boolean hookActivityTaskManager)
+            throws Exception {
+        if (!isFlymeDevice()) {
+            return;
+        }
+        if (hookController) {
+            Method startBackNavigation = findAnyMethod(controllerClass,
+                    "startBackNavigation", 1);
+            if (startBackNavigation == null) {
+                throw new NoSuchMethodException(controllerClass.getName()
+                        + ".startBackNavigation(*)");
+            }
+            startBackNavigation.setAccessible(true);
+            recordHookHandle(hook(startBackNavigation)
+                    .setId("shell_back_flyme_start_navigation")
+                    .intercept(this::onFlymeStartBackNavigation));
+        }
+        if (hookActivityTaskManager) {
+            Class<?> proxyClass = Class.forName(ACTIVITY_TASK_MANAGER_PROXY,
+                    false, classLoader);
+            Method proxyStart = findAnyMethod(proxyClass, "startBackNavigation", 2);
+            if (proxyStart == null) {
+                throw new NoSuchMethodException(proxyClass.getName()
+                        + ".startBackNavigation(*,*)");
+            }
+            proxyStart.setAccessible(true);
+            recordHookHandle(hook(proxyStart)
+                    .setId("shell_back_flyme_atm_start_navigation")
+                    .intercept(this::onFlymeActivityTaskManagerStartBackNavigation));
+        }
+        moduleLog(Log.INFO, TAG, "Restored Flyme BackAnimationAdapter wiring"
+                + ", controller=" + hookController
+                + ", activityTaskManager=" + hookActivityTaskManager);
+    }
+
+    protected Object onFlymeStartBackNavigation(XposedInterface.Chain chain)
+            throws Throwable {
+        Object controller = chain.getThisObject();
+        Object adapter = null;
+        try {
+            adapter = readField(controller, "mBackAnimationAdapter");
+        } catch (Throwable ignored) {
+        }
+        if (adapter == null) {
+            try {
+                invokeAnyMethod(controller, "createAdapter", new Object[0]);
+                adapter = readField(controller, "mBackAnimationAdapter");
+            } catch (Throwable throwable) {
+                moduleLog(Log.WARN, TAG, "Failed to create Flyme BackAnimationAdapter",
+                        throwable);
+            }
+        }
+        if (adapter == null) {
+            moduleLog(Log.WARN, TAG, "Flyme BackAnimationAdapter unavailable");
+            return chain.proceed();
+        }
+        try {
+            Object registry = readField(controller, "mShellBackAnimationRegistry");
+            Object supportedAnimators = readField(registry, "mSupportedAnimators");
+            invokeAnyMethod(adapter, "updateSupportedAnimators",
+                    new Object[]{supportedAnimators});
+        } catch (Throwable throwable) {
+            moduleLog(Log.WARN, TAG,
+                    "Optional Flyme adapter supported-animator sync unavailable",
+                    throwable);
+        }
+        flymeBackAnimationAdapterOverride.set(adapter);
+        try {
+            return chain.proceed();
+        } finally {
+            flymeBackAnimationAdapterOverride.remove();
+        }
+    }
+
+    protected Object onFlymeActivityTaskManagerStartBackNavigation(
+            XposedInterface.Chain chain) throws Throwable {
+        Object adapter = flymeBackAnimationAdapterOverride.get();
+        List<Object> args = chain.getArgs();
+        if (adapter == null || args.size() <= 1 || args.get(1) != null) {
+            return chain.proceed();
+        }
+        Object[] replacementArgs = args.toArray();
+        replacementArgs[1] = adapter;
+        return chain.proceed(replacementArgs);
+    }
+
     protected void hookBackNavigationInfoReceived(Class<?> controllerClass)
             throws NoSuchMethodException {
         Method method = controllerClass.getDeclaredMethod(
@@ -6910,6 +7060,15 @@ public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
     protected void installBackInputDriver(Object edgeBackGestureHandler, Object backAnimationImpl) {
         if (!acceptingBackInputInstalls) {
             return;
+        }
+        try {
+            if (!requireSystemUiPlatformImpl().shouldInstallBackInputMonitor()) {
+                return;
+            }
+        } catch (Throwable ignored) {
+            if (isFlymeDevice()) {
+                return;
+            }
         }
         try {
             if (edgeBackGestureHandler == null || backAnimationImpl == null) {

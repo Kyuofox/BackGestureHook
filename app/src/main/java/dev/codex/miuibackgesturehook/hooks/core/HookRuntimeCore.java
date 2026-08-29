@@ -30,6 +30,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -104,6 +105,19 @@ public abstract class HookRuntimeCore extends XposedModule {
             BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")";
     protected static final String SYSTEM_UI = "com.android.systemui";
     protected static final String MIUI_HOME = "com.miui.home";
+    protected static final String FLYME_LAUNCHER_PACKAGE = "com.meizu.flyme.launcher";
+    protected static final String FLYME_EDGE_BACK_VIEW =
+            "com.flyme.systemui.navigationbar.gestural.EdgeBackView";
+    protected static final String ACTIVITY_TASK_MANAGER_PROXY =
+            "android.app.IActivityTaskManager$Stub$Proxy";
+    private static final boolean XIAOMI_FAMILY_DEVICE =
+            containsIgnoreCase(Build.MANUFACTURER, "xiaomi")
+                    || containsIgnoreCase(Build.BRAND, "xiaomi")
+                    || containsIgnoreCase(Build.BRAND, "redmi")
+                    || containsIgnoreCase(Build.BRAND, "poco");
+    private static final boolean FLYME_DEVICE =
+            containsIgnoreCase(Build.MANUFACTURER, "meizu")
+                    || containsIgnoreCase(Build.BRAND, "meizu");
     protected static final String MODULE_PACKAGE = NativeHookStatusProtocol.PACKAGE_NAME;
     protected static final int ANDROID_17_API_LEVEL = 37;
     protected static final String WINDOW_ON_BACK_INVOKED_DISPATCHER =
@@ -580,7 +594,20 @@ public abstract class HookRuntimeCore extends XposedModule {
      * libxposed does not provide a platform-conditional scope list.
      */
     protected static boolean blockMiuiHomeXposedHooks() {
-        return Build.VERSION.SDK_INT >= ANDROID_17_API_LEVEL;
+        return isFlymeDevice() || Build.VERSION.SDK_INT >= ANDROID_17_API_LEVEL;
+    }
+
+    protected static boolean isXiaomiFamilyDevice() {
+        return XIAOMI_FAMILY_DEVICE;
+    }
+
+    protected static boolean isFlymeDevice() {
+        return FLYME_DEVICE;
+    }
+
+    private static boolean containsIgnoreCase(String value, String needle) {
+        return value != null && needle != null
+                && value.toLowerCase(Locale.ROOT).contains(needle);
     }
 
     protected static boolean isMiuiHomeProcess(String candidate) {

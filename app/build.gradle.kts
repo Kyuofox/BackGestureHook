@@ -14,13 +14,11 @@ val gitVersionCode = gitCommitCount.map { count ->
     count.toInt()
 }
 
+// This Flyme fork does not package the HyperOS hyos_spawner native entry.
+val enableHyosNativeHook = false
 val localLspltAar = rootProject.file(
     "../LSPlt/build-android-arm64-v8a-16kb/lsplt-standalone-2.1-16kb.aar",
-).also { aar ->
-    require(aar.isFile) {
-        "Missing locally rebuilt 16KB LSPlt AAR: ${aar.absolutePath}"
-    }
-}
+)
 
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -56,12 +54,14 @@ val hasEnvSigningConfig = listOf(
 android {
     namespace = "dev.codex.miuibackgesturehook"
     compileSdk = 37
-    ndkVersion = "30.0.14904198"
+    if (enableHyosNativeHook) {
+        ndkVersion = "30.0.14904198"
+    }
 
     buildFeatures {
         buildConfig = true
         compose = true
-        prefab = true
+        prefab = enableHyosNativeHook
     }
 
     defaultConfig {
@@ -71,17 +71,19 @@ android {
         versionCode = gitVersionCode.get()
         versionName = "0.11.7"
 
-        ndk {
-            abiFilters += "arm64-v8a"
-        }
+        if (enableHyosNativeHook) {
+            ndk {
+                abiFilters += "arm64-v8a"
+            }
 
-        externalNativeBuild {
-            cmake {
-                arguments += listOf(
-                    "-DANDROID_STL=c++_static",
-                    "-DLAUNCHER_PROFILE_INCLUDE_DIR=${rootProject.file("miui-home-hyos-native/generated").absolutePath}",
-                )
-                targets += "miui_home_hyos_lsp"
+            externalNativeBuild {
+                cmake {
+                    arguments += listOf(
+                        "-DANDROID_STL=c++_static",
+                        "-DLAUNCHER_PROFILE_INCLUDE_DIR=${rootProject.file("miui-home-hyos-native/generated").absolutePath}",
+                    )
+                    targets += "miui_home_hyos_lsp"
+                }
             }
         }
     }
@@ -120,10 +122,12 @@ android {
         }
     }
 
-    externalNativeBuild {
-        cmake {
-            path = rootProject.file("miui-home-hyos-native/CMakeLists.txt")
-            version = "4.1.2"
+    if (enableHyosNativeHook) {
+        externalNativeBuild {
+            cmake {
+                path = rootProject.file("miui-home-hyos-native/CMakeLists.txt")
+                version = "4.1.2"
+            }
         }
     }
 
@@ -147,7 +151,12 @@ dependencies {
     implementation(libs.miuix.icons.android)
     implementation(libs.miuix.preference.android)
     implementation(libs.miuix.ui.android)
-    implementation(files(localLspltAar))
+    if (enableHyosNativeHook) {
+        require(localLspltAar.isFile) {
+            "Missing locally rebuilt 16KB LSPlt AAR: ${localLspltAar.absolutePath}"
+        }
+        implementation(files(localLspltAar))
+    }
 
     testImplementation(kotlin("test-junit"))
 }

@@ -1,75 +1,40 @@
-# MIUI Back Gesture Hook
+# Back Gesture Hook
 
-An LSPosed module for researching Xiaomi MIUI/HyperOS back gestures.
+An LSPosed module rebased from [MiuiBackGestureHook](https://github.com/wxxsfxyzm/MiuiBackGestureHook)
+and adapted for Meizu FlymeOS.
 
-The APK integrates with SystemUI and the system back pipeline. It also carries
-an arm64-v8a LSPosed Native Hook for the MiuiHome process family spawned by
-`hyos_spawner`. Until LSPosed exposes hook-page lifecycle support, the APK
-native entry protects its exact inline and PLT/GOT hook pages from Xiaomi's
-`MADV_DONTNEED` cleanup before enabling Android 17 business hooks.
+On Flyme, the module restores AOSP predictive-back animations without replacing
+the OEM `EdgeBackView` gesture style. Flyme keeps `registerSystemGestureListener`
+and the stock indicator; Shell receives a real `BackAnimationAdapter` and
+non-callback targets are dispatched to the existing remote runners.
 
-Optional integrations (off by default):
-
-- Circle to Search from the gesture handle;
-- Google App full-screen Live Translate, with the platform screen-capture consent
-  flow unchanged.
-
-Android 16 uses the SystemUI gesture path. Android 17 keeps launcher-side
-ownership in the LSPosed native entry and fails closed if its page guard or
-validated native profile cannot be established.
+This fork does not package the HyperOS `hyos_spawner` native entry. Upstream
+native sources remain in `miui-home-hyos-native/` for reference.
 
 ## Compatibility
 
-| Platform | Required components | Launcher support |
-| --- | --- | --- |
-| Android 16 | LSPosed | SystemUI gesture path |
-| Android 17 / HyperOS 4+ | Internal LSPosed with HYOS-spawner support | `4371` static profile; validated newer builds use the runtime resolver |
-
-The native entry is arm64-v8a only. Unsupported or ambiguous layouts fail closed.
-LSPosed's enabled/scope state and HYOS injection own spawner compatibility; the
-entry validates the exact executable and launcher process identity but does not
-pin a `hyos_spawner` Build ID across OTAs. Launcher ELF profiles and business
-hook fingerprints remain fail-closed.
+| Platform | Required components | Gesture style | Predictive back |
+| --- | --- | --- | --- |
+| FlymeOS | LSPosed | OEM `EdgeBackView` | Shell adapter + animator dispatch |
+| Android 16 HyperOS | LSPosed | Upstream SystemUI path | Upstream |
 
 ## Build
 
-Build the LSPosed release APK:
+Build the debug APK unless a release artifact is requested:
 
 ```powershell
-.\gradlew.bat :app:assembleRelease
+.\gradlew.bat assembleDebug
 ```
 
 Outputs:
 
 ```text
-app/build/outputs/apk/release/app-release.apk
+app/build/outputs/apk/debug/app-debug.apk
 ```
-
-For iterative native development, use the guarded LSPosed deployment script.
-It requires Python 3.10 or newer, builds the debug APK by default, installs the
-complete APK through Package Manager, verifies the API-102 SystemUI hot reload,
-and rolls only the exact
-root `hyos_spawner` so the new native APK inode becomes active without a phone
-reboot:
-
-```text
-python miui-home-hyos-native/safe_lsposed_native_deploy.py --action deploy --serial <adb-serial>
-```
-
-Pass `--skip-build` to deploy the existing debug APK, or `--apk <path>` to deploy
-an explicitly selected complete APK. The script refuses to run while a retired
-standalone owner remains mapped. It never extracts or pushes the APK's native
-library separately and never writes Android system properties. The
-upgrade requests PackageManager rollback with retained app data and also keeps
-a verified copy of the previously installed complete APK as a fallback.
-
-The APK contains `lib/arm64-v8a/libmiui_home_hyos_lsp.so` and declares it in
-`META-INF/xposed/native_init.list`. This branch has no standalone native-module
-package or activation path.
 
 ## Scope and runtime
 
-The static LSPosed scope is:
+The static LSPosed scope remains:
 
 ```text
 com.android.systemui
@@ -78,21 +43,14 @@ com.google.android.googlequicksearchbox
 system
 ```
 
-The Google App scope is used only when Live Translate is enabled. On Android 17
-and newer, MiuiHome remains listed for compatibility, but it registers no Java
-launcher hooks; launcher work is owned by the LSPosed native entry.
+Flyme does not load `com.miui.home`. Do not add `com.meizu.flyme.launcher`.
 
-API 102 hot reload is enabled with `autoHotReload=true`. The settings screen can
-refresh the authenticated SystemUI/native runtime status and resolved launcher profile.
+API 102 hot reload is enabled with `autoHotReload=true`.
 
 ## References
 
-Checked-in AOSP references are under `refs/android16/aosp_back_16/`. Xiaomi
-artifacts and device evidence remain local-only under ignored `refs/android17`
-paths; see [refs/README.md](refs/README.md).
-
-Shared native sources, the LSPosed APK target, and guarded deployment tooling are
-under `miui-home-hyos-native/`.
+Checked-in AOSP references are under `refs/android16/aosp_back_16/`. Upstream
+native sources remain under `miui-home-hyos-native/` and are not packaged.
 
 ## License
 

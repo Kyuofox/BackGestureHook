@@ -318,9 +318,10 @@ public abstract class HotReloadHookRuntime extends SystemServerHookRuntime {
         if (hadSystemUiHook && oldSystemUiClassLoader != null) {
             hotReloadClassLoader = oldSystemUiClassLoader;
         }
-        boolean shouldInstallServerHooks = param.isSystemServer()
+        boolean shouldInstallServerHooks = !isFlymeDevice()
+                && (param.isSystemServer()
                 || "system".equals(processName)
-                || hadServerHook;
+                || hadServerHook);
         ClassLoader preferredServerClassLoader = oldSystemServerClassLoader != null
                 ? oldSystemServerClassLoader : hotReloadClassLoader;
         if (shouldInstallServerHooks && replaced == 0) {
@@ -380,6 +381,9 @@ public abstract class HotReloadHookRuntime extends SystemServerHookRuntime {
                         "Failed to restore SystemUI platform implementation after hot reload",
                         throwable);
             }
+            if (isFlymeDevice()) {
+                restoreFlymeSystemUiHotReloadHooks(hotReloadClassLoader, oldHookIds);
+            } else {
             boolean missingContextualSearchAttach = !oldHookIds.contains(
                     "systemui_contextual_search_nav_attach");
             boolean missingContextualSearchDetach = !oldHookIds.contains(
@@ -559,8 +563,9 @@ public abstract class HotReloadHookRuntime extends SystemServerHookRuntime {
                     && !backFinishOpenCallerDeoptimized) {
                 deoptimizeBackFinishOpenCaller(hotReloadClassLoader);
             }
+            }
         }
-        if (SYSTEM_UI.equals(processName)) {
+        if (SYSTEM_UI.equals(processName) && !isFlymeDevice()) {
             restoreSystemUiHotReloadLifecycle(hotReloadClassLoader);
             Object[] navigationBars = pendingHotReloadContextualSearchNavigationBars;
             pendingHotReloadContextualSearchNavigationBars = new Object[0];
@@ -963,6 +968,12 @@ public abstract class HotReloadHookRuntime extends SystemServerHookRuntime {
                 return this::proceedShellAnimationLifecycle;
             case "shell_back_finishBackAnimation":
                 return this::onShellAnimationFinished;
+            case "shell_back_flyme_dispatch_to_animator":
+                return this::selectFlymeAnimatorDispatch;
+            case "shell_back_flyme_start_navigation":
+                return this::onFlymeStartBackNavigation;
+            case "shell_back_flyme_atm_start_navigation":
+                return this::onFlymeActivityTaskManagerStartBackNavigation;
             case "systemui_navigation_bar_view_insets":
             case "server_back_promote_to_tf_if_needed":
             case "systemui_navigation_bar_window_state":
@@ -1254,9 +1265,80 @@ public abstract class HotReloadHookRuntime extends SystemServerHookRuntime {
         }
     }
 
+    protected void restoreFlymeSystemUiHotReloadHooks(ClassLoader classLoader,
+                                                      Set<String> oldHookIds) {
+        if (!oldHookIds.contains("systemui_navigation_bar_gesture_insets")) {
+            hookNavigationBarGestureInsets(classLoader);
+        }
+        Class<?> controllerClass = null;
+        if (!oldHookIds.contains("shell_back_onBackAnimationFinished")
+                || !oldHookIds.contains("shell_back_finishBackAnimation")
+                || !oldHookIds.contains("shell_back_onBackNavigationInfoReceived")
+                || !oldHookIds.contains("shell_back_flyme_dispatch_to_animator")
+                || !oldHookIds.contains("shell_back_flyme_start_navigation")
+                || !oldHookIds.contains("shell_back_flyme_atm_start_navigation")) {
+            try {
+                controllerClass = Class.forName(BACK_ANIMATION_CONTROLLER, false,
+                        classLoader);
+            } catch (Throwable throwable) {
+                moduleLog(Log.ERROR, TAG,
+                        "Failed to resolve Flyme Shell controller for hook backfill",
+                        throwable);
+            }
+        }
+        if (controllerClass != null
+                && !oldHookIds.contains("shell_back_onBackAnimationFinished")) {
+            try {
+                hookShellAnimationFinished(controllerClass, "onBackAnimationFinished",
+                        "shell_back_onBackAnimationFinished", false);
+            } catch (Throwable throwable) {
+                moduleLog(Log.ERROR, TAG,
+                        "Failed to backfill Flyme Shell completion hook", throwable);
+            }
+        }
+        if (controllerClass != null
+                && !oldHookIds.contains("shell_back_finishBackAnimation")) {
+            try {
+                hookShellAnimationFinished(controllerClass, "finishBackAnimation",
+                        "shell_back_finishBackAnimation", true);
+            } catch (Throwable throwable) {
+                moduleLog(Log.ERROR, TAG,
+                        "Failed to backfill Flyme finishBackAnimation hook", throwable);
+            }
+        }
+        if (controllerClass != null
+                && !oldHookIds.contains("shell_back_onBackNavigationInfoReceived")) {
+            try {
+                hookBackNavigationInfoReceived(controllerClass);
+            } catch (Throwable throwable) {
+                moduleLog(Log.ERROR, TAG,
+                        "Failed to backfill Flyme navigation-info hook", throwable);
+            }
+        }
+        if (controllerClass != null
+                && !oldHookIds.contains("shell_back_flyme_dispatch_to_animator")) {
+            try {
+                hookFlymeAnimatorDispatch(controllerClass);
+            } catch (Throwable throwable) {
+                moduleLog(Log.ERROR, TAG,
+                        "Failed to backfill Flyme animator dispatch", throwable);
+            }
+        }
+        boolean missingStart = !oldHookIds.contains("shell_back_flyme_start_navigation");
+        boolean missingAtm = !oldHookIds.contains("shell_back_flyme_atm_start_navigation");
+        if (missingStart || missingAtm) {
+            hookFlymeBackAnimationAdapter(classLoader, missingStart, missingAtm);
+        }
+    }
+
     @Override
     public void onSystemServerStarting(XposedModuleInterface.SystemServerStartingParam param) {
         processName = "system";
+        if (isFlymeDevice()) {
+            moduleLog(Log.INFO, TAG, "Skipped system_server hooks on FlymeOS, build="
+                    + BUILD_MARK);
+            return;
+        }
         moduleLog(Log.INFO, TAG, "System server starting, build=" + BUILD_MARK
                 + ", classLoader=" + param.getClassLoader());
         installSystemServerHooks(param.getClassLoader());

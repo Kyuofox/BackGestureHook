@@ -19,6 +19,10 @@ abstract class SystemUiPlatformImpl {
     abstract Object ensureNativeEdgeBackPlugin(Object edgeBackGestureHandler,
                                                Context context) throws Exception;
 
+    boolean shouldInstallBackInputMonitor() {
+        return true;
+    }
+
     abstract void prepareNativeBackPanel(Object edgeBackGestureHandler,
                                          Object plugin) throws Exception;
 
