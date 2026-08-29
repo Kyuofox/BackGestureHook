@@ -96,16 +96,15 @@ public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
 
     protected void installSystemUiHooks(ClassLoader classLoader) {
         try {
-            selectSystemUiPlatformImpl(classLoader);
             if (isFlymeDevice()) {
-                hookNavigationBarGestureInsets(classLoader);
-                hookShellBackAnimation(classLoader);
+                hookFlymeShellBackAnimation(classLoader);
                 moduleLog(Log.INFO, TAG,
                         "Installed Flyme predictive-back hooks without replacing EdgeBackView"
                                 + ", build=" + BUILD_MARK
                                 + ", hooks=" + hookHandles.size());
                 return;
             }
+            selectSystemUiPlatformImpl(classLoader);
             hookContextualSearchNavigationBar(classLoader, true, true);
             Context systemUiContext = resolveCurrentApplicationContext(classLoader);
             if (systemUiContext != null) {
@@ -235,14 +234,9 @@ public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
     protected void selectSystemUiPlatformImpl(ClassLoader classLoader) throws Exception {
         Class<?> edgeHandlerClass = Class.forName(EDGE_BACK_GESTURE_HANDLER,
                 false, classLoader);
-        SystemUiPlatformImpl selected;
-        if (isFlymeDevice()) {
-            selected = new SystemUiFlymeImpl();
-        } else if (SystemUiAndroid17Impl.matches(edgeHandlerClass, classLoader)) {
-            selected = new SystemUiAndroid17Impl();
-        } else {
-            selected = new SystemUiAndroid16Impl();
-        }
+        SystemUiPlatformImpl selected = SystemUiAndroid17Impl.matches(
+                edgeHandlerClass, classLoader)
+                ? new SystemUiAndroid17Impl() : new SystemUiAndroid16Impl();
         SystemUiPlatformImpl previous = systemUiPlatformImpl;
         systemUiPlatformImpl = selected;
         if (previous != null && previous != selected) {
@@ -2405,13 +2399,6 @@ public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
             hookShellAnimationFinished(controllerClass, "finishBackAnimation",
                     "shell_back_finishBackAnimation", true);
             hookBackNavigationInfoReceived(controllerClass);
-            if (isFlymeDevice()) {
-                hookFlymeAnimatorDispatch(controllerClass);
-                hookFlymeBackAnimationAdapter(controllerClass, classLoader, true, true);
-                moduleLog(Log.INFO, TAG,
-                        "Hooked Flyme Shell predictive-back adapter and animator dispatch");
-                return;
-            }
             hookPreparedBackTargetArrival(classLoader);
             hookPreparedBackTerminal(controllerClass);
             hookPreparedBackTransitionDecision(classLoader);
@@ -6154,10 +6141,25 @@ public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
         }
     }
 
-    protected void hookFlymeAnimatorDispatch(Class<?> controllerClass) throws Exception {
-        if (!isFlymeDevice()) {
-            return;
+    protected void hookFlymeShellBackAnimation(ClassLoader classLoader) {
+        try {
+            Class<?> controllerClass =
+                    Class.forName(BACK_ANIMATION_CONTROLLER, false, classLoader);
+            hookShellAnimationFinished(controllerClass, "onBackAnimationFinished",
+                    "shell_back_onBackAnimationFinished", false);
+            hookShellAnimationFinished(controllerClass, "finishBackAnimation",
+                    "shell_back_finishBackAnimation", true);
+            hookBackNavigationInfoReceived(controllerClass);
+            hookFlymeAnimatorDispatch(controllerClass);
+            hookFlymeBackAnimationAdapter(controllerClass, classLoader, true, true);
+            moduleLog(Log.INFO, TAG,
+                    "Hooked Flyme Shell predictive-back adapter and animator dispatch");
+        } catch (Throwable throwable) {
+            moduleLog(Log.ERROR, TAG, "Failed to hook Flyme Shell back animation", throwable);
         }
+    }
+
+    protected void hookFlymeAnimatorDispatch(Class<?> controllerClass) throws Exception {
         Method method = controllerClass.getDeclaredMethod("shouldDispatchToAnimator");
         method.setAccessible(true);
         recordHookHandle(hook(method)
@@ -6198,9 +6200,6 @@ public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
                                                  boolean hookController,
                                                  boolean hookActivityTaskManager)
             throws Exception {
-        if (!isFlymeDevice()) {
-            return;
-        }
         if (hookController) {
             Method startBackNavigation = findAnyMethod(controllerClass,
                     "startBackNavigation", 1);
@@ -7060,15 +7059,6 @@ public abstract class SystemUiHookRuntime extends SystemUiInputRuntime {
     protected void installBackInputDriver(Object edgeBackGestureHandler, Object backAnimationImpl) {
         if (!acceptingBackInputInstalls) {
             return;
-        }
-        try {
-            if (!requireSystemUiPlatformImpl().shouldInstallBackInputMonitor()) {
-                return;
-            }
-        } catch (Throwable ignored) {
-            if (isFlymeDevice()) {
-                return;
-            }
         }
         try {
             if (edgeBackGestureHandler == null || backAnimationImpl == null) {

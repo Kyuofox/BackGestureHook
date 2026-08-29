@@ -105,16 +105,8 @@ public abstract class HookRuntimeCore extends XposedModule {
             BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ")";
     protected static final String SYSTEM_UI = "com.android.systemui";
     protected static final String MIUI_HOME = "com.miui.home";
-    protected static final String FLYME_LAUNCHER_PACKAGE = "com.meizu.flyme.launcher";
-    protected static final String FLYME_EDGE_BACK_VIEW =
-            "com.flyme.systemui.navigationbar.gestural.EdgeBackView";
     protected static final String ACTIVITY_TASK_MANAGER_PROXY =
             "android.app.IActivityTaskManager$Stub$Proxy";
-    private static final boolean XIAOMI_FAMILY_DEVICE =
-            containsIgnoreCase(Build.MANUFACTURER, "xiaomi")
-                    || containsIgnoreCase(Build.BRAND, "xiaomi")
-                    || containsIgnoreCase(Build.BRAND, "redmi")
-                    || containsIgnoreCase(Build.BRAND, "poco");
     private static final boolean FLYME_DEVICE =
             containsIgnoreCase(Build.MANUFACTURER, "meizu")
                     || containsIgnoreCase(Build.BRAND, "meizu");
@@ -594,11 +586,7 @@ public abstract class HookRuntimeCore extends XposedModule {
      * libxposed does not provide a platform-conditional scope list.
      */
     protected static boolean blockMiuiHomeXposedHooks() {
-        return isFlymeDevice() || Build.VERSION.SDK_INT >= ANDROID_17_API_LEVEL;
-    }
-
-    protected static boolean isXiaomiFamilyDevice() {
-        return XIAOMI_FAMILY_DEVICE;
+        return Build.VERSION.SDK_INT >= ANDROID_17_API_LEVEL;
     }
 
     protected static boolean isFlymeDevice() {

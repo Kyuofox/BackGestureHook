@@ -77,6 +77,9 @@ FlymeOS rules:
 - Skip HyperOS `hyos_spawner` native packaging and activation. Skip MiuiHome
   Java hooks, Xiaomi OPEN-interruption hooks, and system_server Xiaomi
   compatibility hooks on Flyme.
+- Flyme is not Android 17. Do not select the Android 16/17 SystemUI adapters,
+  do not match `DisplayBackGestureHandler`, and do not run Android 17-only
+  launcher or native status paths.
 
 The abandoned MiuiHome experiment is specifically the old GestureStub/
 `BackAnimationAdapter` injection path. Standard launcher callback/runner registration
